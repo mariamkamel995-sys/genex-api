@@ -1,6 +1,6 @@
 from fastapi import FastAPI, UploadFile, File
 from fastapi.middleware.cors import CORSMiddleware
-from google import genai  # ← الـ import الصحيح للـ SDK الجديد
+from google import genai
 import os
 import shutil
 from typing import List
@@ -16,11 +16,13 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# استخدمي environment variable مش hard-code الـ key (أمان أكتر على السيرفر)
+# قراءة الـ API Key من الـ environment variables (الطريقة الآمنة)
 API_KEY = os.getenv("GEMINI_API_KEY")
-if not API_KEY:
-    raise ValueError("GEMINI_API_KEY غير موجود في الـ environment variables!")
 
+if not API_KEY:
+    raise ValueError("GEMINI_API_KEY مش موجود في الـ environment variables! أضيفه في إعدادات Railway.")
+
+# تهيئة الـ client
 client = genai.Client(api_key=API_KEY)
 
 chat_history = []
@@ -39,7 +41,7 @@ async def chat(user_input: str):
     global chat_history
     chat_history.append({"role": "user", "content": user_input})
 
-    # آخر 6 رسائل بس عشان الـ context ما يبقاش طويل أوي
+    # آخر 6 رسائل فقط عشان الـ context ما يطولش
     history_text = "\n".join([f"{msg['role']}: {msg['content']}" for msg in chat_history[-6:]])
 
     prompt = f"""
@@ -54,9 +56,8 @@ async def chat(user_input: str):
 """
 
     try:
-        # الطريقة الصحيحة في الـ SDK الجديد
         response = client.models.generate_content(
-            model="models/gemini-1.5-flash",  # أو gemini-1.5-pro أو أي موديل تاني
+            model="models/gemini-1.5-flash",
             contents=[{"role": "user", "parts": [{"text": prompt}]}]
         )
         reply = response.candidates[0].content.parts[0].text.strip()
